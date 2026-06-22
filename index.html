@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>노벨렌즈 — 웹소설 AI 창작 도구</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
-<script src="https://js.tosspayments.com/v1/payment"></script>
+<script src="https://js.tosspayments.com/v2/payment-widget"></script>
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -269,15 +269,14 @@ document.getElementById('pay-btn').onclick = async () => {
   const orderId = 'NL-' + Date.now();
   try {
     const tossPayments = TossPayments(TOSS_CLIENT_KEY);
-    const baseUrl = window.location.origin + window.location.pathname;
-    await tossPayments.requestPayment('CARD', {
+    const baseUrl = 'https://kimsuneul.github.io/novellens/';
+    await tossPayments.requestPayment('카드', {
       amount: 4900,
-      orderId,
-      orderName: 'Novellens Standard 1 Month',
-      customerEmail: email,
+      orderId: orderId,
+      orderName: 'Novellens Standard',
       customerName: 'Customer',
-      successUrl: baseUrl + '?payment=success&uid=' + encodeURIComponent(S.user.uid),
-      failUrl:    baseUrl + '?payment=fail',
+      successUrl: baseUrl + '?payment=success&uid=' + S.user.uid,
+      failUrl: baseUrl + '?payment=fail',
     });
   } catch (error) {
     if (error.code !== 'USER_CANCEL') alert('결제 오류: ' + error.message);
