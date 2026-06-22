@@ -96,6 +96,15 @@ async function loadUserDoc() {
     await setDoc(doc(db, 'users', S.user.uid), S.userDoc);
     S.projects = [];
   }
+  // Firestore에서 운영자 API 키 가져오기
+  try {
+    const configSnap = await getDoc(doc(db, 'config', 'anthropic'));
+    if (configSnap.exists()) {
+      S.serverApiKey = configSnap.data().apiKey || '';
+    }
+  } catch(e) {
+    S.serverApiKey = '';
+  }
 }
 
 function proj() { return S.projects.find(p => p.id === S.cur); }
@@ -499,7 +508,9 @@ window.jumpToText = function(word, idx) {
 document.getElementById('analyze-btn').onclick = async () => {
   if (!S.user) { showAuthModal('login'); return; }
   const p = proj(); if (!p) return;
-  if (!S.apiKey) { alert('API 키를 먼저 설정해주세요.\n우측 상단 "API 키 설정" 버튼을 눌러주세요.'); return; }
+  // 운영자 서버 키 우선, 없으면 개인 키 사용
+  const useApiKey = S.serverApiKey || S.apiKey;
+  if (!useApiKey) { alert('서비스 준비 중입니다. 잠시 후 다시 시도해주세요.'); return; }
 
   const prem  = isPremium();
   const usage = getDailyUsage();
@@ -550,7 +561,7 @@ ${prevResult}
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'x-api-key': S.apiKey,
+        'x-api-key': useApiKey,
         'anthropic-version': '2023-06-01',
         'content-type': 'application/json',
         'anthropic-dangerous-direct-browser-access': 'true'
