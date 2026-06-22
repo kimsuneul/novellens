@@ -269,14 +269,15 @@ document.getElementById('pay-btn').onclick = async () => {
   const orderId = 'NL-' + Date.now();
   try {
     const tossPayments = TossPayments(TOSS_CLIENT_KEY);
+    const baseUrl = window.location.origin + window.location.pathname;
     await tossPayments.requestPayment('CARD', {
       amount: 4900,
       orderId,
       orderName: 'Novellens Standard 1 Month',
       customerEmail: email,
-      customerName: email,
-      successUrl: window.location.href + '?payment=success&uid=' + S.user.uid,
-      failUrl:    window.location.href + '?payment=fail',
+      customerName: 'Customer',
+      successUrl: baseUrl + '?payment=success&uid=' + encodeURIComponent(S.user.uid),
+      failUrl:    baseUrl + '?payment=fail',
     });
   } catch (error) {
     if (error.code !== 'USER_CANCEL') alert('결제 오류: ' + error.message);
