@@ -60,9 +60,11 @@ const S = {
   user: null,           // Firebase user 객체
   userDoc: null,        // Firestore 유저 문서
   apiKey: localStorage.getItem('nl_key') || '',
+  serverApiKey: '',
   projects: [],
   cur: null, chapter: 0, tab: 'characters',
 };
+window.S = S; // 외부 접근 허용
 
 function todayKey() { return 'usage_' + new Date().toISOString().slice(0,10); }
 function isPremium() {
