@@ -269,7 +269,7 @@ document.getElementById('pay-btn').onclick = async () => {
   const orderId = 'NL-' + Date.now();
   try {
     const tossPayments = TossPayments(TOSS_CLIENT_KEY);
-    await tossPayments.requestPayment('카드', {
+    await tossPayments.requestPayment('CARD', {
       amount: 4900,
       orderId,
       orderName: 'Novellens Standard 1 Month',
