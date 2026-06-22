@@ -272,7 +272,7 @@ document.getElementById('pay-btn').onclick = async () => {
     await tossPayments.requestPayment('카드', {
       amount: 4900,
       orderId,
-      orderName: '노벨렌즈 스탠다드 (1개월)',
+      orderName: 'Novellens Standard 1 Month',
       customerEmail: email,
       customerName: email,
       successUrl: window.location.href + '?payment=success&uid=' + S.user.uid,
@@ -311,7 +311,7 @@ document.getElementById('banner-upgrade').onclick = (e) => {
 };
 
 // ─── 기존 기능들 ─────────────────────────────
-const TOSS_CLIENT_KEY = 'test_ck_AQ92ymxN342eEAe4NMb0rajRKXvd';
+const TOSS_CLIENT_KEY = 'test_ck_여기에_클라이언트키_입력';
 
 function updateKeyStatus() {
   const el = document.getElementById('apikey-status');
