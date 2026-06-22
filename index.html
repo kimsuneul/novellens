@@ -592,6 +592,11 @@ document.getElementById('modal-input').addEventListener('keydown', e => { if (e.
 // ─── 초기화 ───────────────────────────────────
 handlePaymentReturn();
 updateKeyStatus();
+
+// 페이지 로드 즉시 로그인 모달 표시 (Firebase 응답 전에 먼저 보여줌)
+showAuthModal('login');
+
+
 </script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
