@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>노벨렌즈 — 웹소설 AI 창작 도구</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
-<script src="https://js.tosspayments.com/v2/payment-widget"></script>
+<script src="https://js.tosspayments.com/v1/payment"></script>
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -278,7 +278,7 @@ document.getElementById('pay-btn').onclick = async () => {
       failUrl: baseUrl + '?payment=fail',
     });
   } catch (error) {
-    if (error.code !== 'USER_CANCEL') alert('결제 오류: ' + error.message);
+    if (error.code !== 'USER_CANCEL') alert('Error: ' + error.message);
   }
 };
 
@@ -310,7 +310,7 @@ document.getElementById('banner-upgrade').onclick = (e) => {
 };
 
 // ─── 기존 기능들 ─────────────────────────────
-const TOSS_CLIENT_KEY = 'test_ck_여기에_클라이언트키_입력';
+const TOSS_CLIENT_KEY = 'test_ck_AQ92ymxN342eEAe4NMb0rajRKXvd';
 
 function updateKeyStatus() {
   const el = document.getElementById('apikey-status');
