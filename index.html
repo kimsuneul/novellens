@@ -388,6 +388,7 @@ function selectProj(id) {
   document.getElementById('proj-title').textContent = p.name;
   document.getElementById('editor').disabled = false;
   document.getElementById('analyze-btn').disabled = false;
+  document.getElementById('copy-btn').disabled = false;
   renderSidebar(); renderChapterBar(); loadText(); renderAnalysis();
 }
 
@@ -653,6 +654,19 @@ ${prevResult}
 
 document.getElementById('modal-input').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('modal-ok').click(); });
 
+document.getElementById('copy-btn').onclick = async () => {
+  const text = document.getElementById('editor').value;
+  if (!text.trim()) { alert('복사할 내용이 없어요.'); return; }
+  try {
+    await navigator.clipboard.writeText(text);
+    const el = document.getElementById('copy-text');
+    el.textContent = '✓ 복사됨!';
+    setTimeout(() => { el.textContent = '📋 전체 복사'; }, 2000);
+  } catch(e) {
+    alert('복사에 실패했습니다. 직접 선택 후 복사해주세요.');
+  }
+};
+
 // ─── 초기화 ───────────────────────────────────
 handlePaymentReturn();
 updateKeyStatus();
@@ -718,6 +732,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
 #editor:focus{border-color:var(--border2)}
 #editor-footer{display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 #charcount{font-size:11px;color:var(--text3)}
+#copy-btn{padding:8px 14px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:13px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all 0.15s}
+#copy-btn:hover{border-color:var(--accent);color:var(--accent2)}
+#copy-btn:disabled{color:var(--text3);cursor:default;border-color:var(--border)}
 #analyze-btn{padding:8px 20px;border-radius:var(--radius-sm);border:none;background:var(--accent);color:white;font-size:13px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all 0.15s;display:flex;align-items:center;gap:8px}
 #analyze-btn:hover{background:var(--accent2)}
 #analyze-btn:disabled{background:var(--bg4);color:var(--text3);cursor:default}
@@ -848,10 +865,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
         <textarea id="editor" placeholder="왼쪽에서 작품을 선택하거나 새로 만들어 글을 시작하세요." disabled></textarea>
         <div id="editor-footer">
           <span id="charcount">0자</span>
-          <button id="analyze-btn" disabled>
-            <div class="spinner" id="spinner"></div>
-            <span id="btn-text">✦ AI 분석</span>
-          </button>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button id="copy-btn" disabled>
+              <span id="copy-text">📋 전체 복사</span>
+            </button>
+            <button id="analyze-btn" disabled>
+              <div class="spinner" id="spinner"></div>
+              <span id="btn-text">✦ AI 분석</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -945,7 +967,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
         <div class="plan-feat-row"><span class="feat-icon" style="color:var(--accent2)">✓</span><span class="feat-text">맞춤법 검사</span></div>
         <div class="plan-feat-row"><span class="feat-icon" style="color:var(--accent2)">✓</span><span class="feat-text"><b>누적 분석</b></span></div>
         <div class="plan-feat-row"><span class="feat-icon" style="color:var(--accent2)">✓</span><span class="feat-text"><b>회차간 연속성 추적</b></span></div>
-        <button id="pay-btn-pro" style="margin-top:14px;width:100%;padding:10px;border-radius:var(--radius-sm);border:none;background:var(--accent2);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif">프로 구독하기</button>
+        <button id="pay-btn-pro" style="margin-top:14px;width:100%;padding:10px;border-radius:var(--radius-sm);border:none;background:var(--accent);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif">프로 구독하기</button>
       </div>
     </div>
 
