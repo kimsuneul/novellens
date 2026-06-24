@@ -37,10 +37,13 @@ const auth = getAuth(app);
 const db   = getFirestore(app);
 
 // ─── 플랜 상수 ────────────────────────────────
-const FREE_DAILY_LIMIT   = 1;
-const STD_DAILY_LIMIT    = 20;
-const STD_PROJECT_LIMIT  = 5;
-const FREE_PROJECT_LIMIT = 1;
+const FREE_MONTHLY_LIMIT  = 4;
+const STD_MONTHLY_LIMIT   = 30;
+const PRO_MONTHLY_LIMIT   = 90;
+const FREE_PROJECT_LIMIT  = 1;
+const STD_PROJECT_LIMIT   = 5;
+const PRO_PROJECT_LIMIT   = 10;
+const MAX_CHARS           = 10000;
 
 // ─── 운영자 이메일 목록 (이 이메일로 로그인하면 API 키 메뉴가 보입니다) ───
 const ADMIN_EMAILS = [
@@ -66,20 +69,26 @@ const S = {
 };
 window.S = S; // 외부 접근 허용
 
-function todayKey() { return 'usage_' + new Date().toISOString().slice(0,10); }
-function isPremium() {
-  if (!S.userDoc) return false;
+function getPlan() {
+  if (!S.userDoc) return 'free';
   const plan = S.userDoc.plan || 'free';
-  if (plan !== 'standard') return false;
+  if (plan === 'free') return 'free';
   const exp = S.userDoc.planExpire?.toDate?.() || new Date(S.userDoc.planExpire || 0);
-  return new Date() < exp;
+  if (new Date() >= exp) return 'free';
+  return plan; // 'standard' or 'pro'
 }
-function getDailyUsage() { return S.userDoc?.[todayKey()] || 0; }
-async function addDailyUsage() {
+function isPremium() { return getPlan() !== 'free'; }
+function monthKey() {
+  const d = new Date();
+  return 'usage_' + d.getFullYear() + '_' + String(d.getMonth()+1).padStart(2,'0');
+}
+function getMonthlyUsage() { return S.userDoc?.[monthKey()] || 0; }
+async function addMonthlyUsage() {
   if (!S.user) return;
   const ref = doc(db, 'users', S.user.uid);
-  await updateDoc(ref, { [todayKey()]: getDailyUsage() + 1 });
-  S.userDoc[todayKey()] = getDailyUsage() + 1;
+  const next = getMonthlyUsage() + 1;
+  await updateDoc(ref, { [monthKey()]: next });
+  S.userDoc[monthKey()] = next;
 }
 
 // ─── Firestore 저장/로드 ──────────────────────
@@ -218,14 +227,19 @@ window.doSignOut = async () => {
 
 // ─── 플랜 UI ──────────────────────────────────
 function updatePlanUI() {
-  const prem = isPremium();
+  const plan   = getPlan();
   const badge  = document.getElementById('plan-badge');
   const subBtn = document.getElementById('subscribe-btn');
-  const usage  = getDailyUsage();
-  const limit  = prem ? STD_DAILY_LIMIT : FREE_DAILY_LIMIT;
+  const usage  = getMonthlyUsage();
   const banner = document.getElementById('free-limit-banner');
 
-  if (prem) {
+  if (plan === 'pro') {
+    badge.textContent = '👑 프로';
+    badge.className   = 'premium';
+    subBtn.textContent = '✓ 프로 구독 중';
+    subBtn.className   = 'premium';
+    banner.style.display = 'none';
+  } else if (plan === 'standard') {
     badge.textContent = '⭐ 스탠다드';
     badge.className   = 'premium';
     subBtn.textContent = '✓ 스탠다드 구독 중';
@@ -234,7 +248,7 @@ function updatePlanUI() {
   } else {
     badge.textContent = '무료 플랜';
     badge.className   = '';
-    subBtn.textContent = '⭐ 스탠다드 구독하기';
+    subBtn.textContent = '⭐ 구독하기';
     subBtn.className   = '';
     if (usage > 0) {
       banner.style.display = 'block';
@@ -243,17 +257,17 @@ function updatePlanUI() {
       banner.style.display = 'none';
     }
   }
-  // 누적분석 태그: 무료면 숨김
-  document.getElementById('cumul-tag').style.display = prem ? 'inline-block' : 'none';
-  document.getElementById('atab-spelling').style.display = prem ? '' : '';
+  document.getElementById('cumul-tag').style.display = (plan !== 'free') ? 'inline-block' : 'none';
 }
 
 // ─── 요금제 모달 ─────────────────────────────
 document.getElementById('subscribe-btn').onclick = () => {
   if (!S.user) { showAuthModal('login'); return; }
-  if (isPremium()) {
+  const plan = getPlan();
+  if (plan !== 'free') {
     const exp = S.userDoc.planExpire?.toDate?.() || new Date(S.userDoc.planExpire || 0);
-    alert(`현재 스탠다드 구독 중입니다.\n만료일: ${exp.toLocaleDateString('ko-KR')}`);
+    const planName = plan === 'pro' ? '프로' : '스탠다드';
+    alert(`현재 ${planName} 구독 중입니다.\n만료일: ${exp.toLocaleDateString('ko-KR')}`);
     return;
   }
   document.getElementById('plan-modal-bg').classList.add('show');
@@ -263,10 +277,9 @@ document.getElementById('plan-close').onclick = () => {
   document.getElementById('plan-modal-bg').classList.remove('show');
 };
 
-document.getElementById('pay-btn').onclick = async () => {
+document.getElementById('pay-btn-std').onclick = async () => {
   if (!S.user) { showAuthModal('login'); return; }
-  const email = S.user.email;
-  const orderId = 'NL-' + Date.now();
+  const orderId = 'NL-STD-' + Date.now();
   try {
     const tossPayments = TossPayments(TOSS_CLIENT_KEY);
     const baseUrl = 'https://kimsuneul.github.io/novellens/';
@@ -274,8 +287,26 @@ document.getElementById('pay-btn').onclick = async () => {
       amount: 4900,
       orderId: orderId,
       orderName: 'Novellens Standard',
-      successUrl: baseUrl + '?payment=success',
-      failUrl: baseUrl + '?payment=fail',
+      successUrl: baseUrl + '?payment=success&plan=standard',
+      failUrl:    baseUrl + '?payment=fail',
+    });
+  } catch (error) {
+    if (error.code !== 'USER_CANCEL') alert('Error: ' + error.message);
+  }
+};
+
+document.getElementById('pay-btn-pro').onclick = async () => {
+  if (!S.user) { showAuthModal('login'); return; }
+  const orderId = 'NL-PRO-' + Date.now();
+  try {
+    const tossPayments = TossPayments(TOSS_CLIENT_KEY);
+    const baseUrl = 'https://kimsuneul.github.io/novellens/';
+    await tossPayments.requestPayment('CARD', {
+      amount: 9900,
+      orderId: orderId,
+      orderName: 'Novellens Pro',
+      successUrl: baseUrl + '?payment=success&plan=pro',
+      failUrl:    baseUrl + '?payment=fail',
     });
   } catch (error) {
     if (error.code !== 'USER_CANCEL') alert('Error: ' + error.message);
@@ -287,17 +318,19 @@ async function handlePaymentReturn() {
   const params = new URLSearchParams(window.location.search);
   const payment = params.get('payment');
   const paymentKey = params.get('paymentKey');
+  const planParam  = params.get('plan') || 'standard';
   const uid = params.get('uid');
   if (payment === 'success' && paymentKey && uid) {
     window.history.replaceState({}, '', window.location.pathname);
     const expire = new Date();
     expire.setDate(expire.getDate() + 30);
     await setDoc(doc(db, 'users', uid), {
-      plan: 'standard', planExpire: expire.toISOString()
+      plan: planParam, planExpire: expire.toISOString()
     }, { merge: true });
     await loadUserDoc();
     updatePlanUI();
-    alert('✅ 결제 완료! 스탠다드 플랜이 시작되었습니다.\n만료일: ' + expire.toLocaleDateString('ko-KR'));
+    const planName = planParam === 'pro' ? '프로' : '스탠다드';
+    alert(`✅ 결제 완료! ${planName} 플랜이 시작되었습니다.\n만료일: ` + expire.toLocaleDateString('ko-KR'));
   } else if (payment === 'fail') {
     window.history.replaceState({}, '', window.location.pathname);
     alert('결제가 취소되었거나 실패했습니다.');
@@ -372,8 +405,17 @@ function loadText() {
 }
 
 function updateCharCount() {
-  const v = document.getElementById('editor').value;
-  document.getElementById('charcount').textContent = v.length.toLocaleString() + '자';
+  const v   = document.getElementById('editor').value;
+  const len = v.length;
+  const el  = document.getElementById('charcount');
+  el.textContent = len.toLocaleString() + '자 / ' + MAX_CHARS.toLocaleString() + '자';
+  if (len > MAX_CHARS) {
+    el.style.color = 'var(--red)';
+  } else if (len > MAX_CHARS * 0.9) {
+    el.style.color = 'var(--yellow)';
+  } else {
+    el.style.color = 'var(--text3)';
+  }
 }
 
 function addChapter() {
@@ -401,14 +443,14 @@ function showModal(title, desc, ph, cb) {
 
 document.getElementById('new-proj').onclick = () => {
   if (!S.user) { showAuthModal('login'); return; }
-  const prem = isPremium();
-  const limit = prem ? STD_PROJECT_LIMIT : FREE_PROJECT_LIMIT;
+  const plan  = getPlan();
+  const limit = plan === 'pro' ? PRO_PROJECT_LIMIT : plan === 'standard' ? STD_PROJECT_LIMIT : FREE_PROJECT_LIMIT;
   if (S.projects.length >= limit) {
-    if (!prem) {
-      const ok = confirm(`무료 플랜은 작품을 ${FREE_PROJECT_LIMIT}개만 만들 수 있습니다.\n스탠다드로 업그레이드하시겠습니까?`);
+    if (plan === 'free') {
+      const ok = confirm(`무료 플랜은 작품을 ${FREE_PROJECT_LIMIT}개만 만들 수 있습니다.\n구독하시겠습니까?`);
       if (ok) document.getElementById('plan-modal-bg').classList.add('show');
     } else {
-      alert(`스탠다드 플랜은 작품을 최대 ${STD_PROJECT_LIMIT}개까지 만들 수 있습니다.`);
+      alert(`현재 플랜은 작품을 최대 ${limit}개까지 만들 수 있습니다.`);
     }
     return;
   }
@@ -425,7 +467,13 @@ document.getElementById('apikey-btn').onclick = () => {
   });
 };
 
-document.getElementById('editor').oninput = updateCharCount;
+document.getElementById('editor').oninput = function() {
+  if (this.value.length > MAX_CHARS) {
+    this.value = this.value.slice(0, MAX_CHARS);
+    alert('⚠️ 입력 가능한 최대 글자 수(10,000자)를 초과했습니다.\n10,000자까지만 입력할 수 있어요.');
+  }
+  updateCharCount();
+};
 
 document.querySelectorAll('.atab').forEach(t => {
   t.onclick = () => {
@@ -513,16 +561,19 @@ document.getElementById('analyze-btn').onclick = async () => {
   const useApiKey = S.serverApiKey || S.apiKey;
   if (!useApiKey) { alert('서비스 준비 중입니다. 잠시 후 다시 시도해주세요.'); return; }
 
-  const prem  = isPremium();
-  const usage = getDailyUsage();
-  const limit = prem ? STD_DAILY_LIMIT : FREE_DAILY_LIMIT;
+  const plan  = getPlan();
+  const usage = getMonthlyUsage();
+  const limit = plan === 'pro' ? PRO_MONTHLY_LIMIT : plan === 'standard' ? STD_MONTHLY_LIMIT : FREE_MONTHLY_LIMIT;
 
   if (usage >= limit) {
-    if (!prem) {
-      const ok = confirm(`무료 플랜 하루 ${FREE_DAILY_LIMIT}회 분석 한도에 도달했습니다.\n스탠다드로 업그레이드하시겠습니까?`);
+    if (plan === 'free') {
+      const ok = confirm(`무료 플랜 월 ${FREE_MONTHLY_LIMIT}회 분석 한도에 도달했습니다.\n구독하시겠습니까?`);
+      if (ok) document.getElementById('plan-modal-bg').classList.add('show');
+    } else if (plan === 'standard') {
+      const ok = confirm(`스탠다드 플랜 월 ${STD_MONTHLY_LIMIT}회 분석 한도에 도달했습니다.\n프로로 업그레이드하시겠습니까?`);
       if (ok) document.getElementById('plan-modal-bg').classList.add('show');
     } else {
-      alert(`스탠다드 플랜 하루 ${STD_DAILY_LIMIT}회 분석 한도에 도달했습니다.\n내일 다시 이용해주세요.`);
+      alert(`프로 플랜 월 ${PRO_MONTHLY_LIMIT}회 분석 한도에 도달했습니다.\n다음 달에 다시 이용해주세요.`);
     }
     return;
   }
@@ -538,16 +589,17 @@ document.getElementById('analyze-btn').onclick = async () => {
   document.getElementById('analysis-body').innerHTML = '<div class="empty"><div style="width:24px;height:24px;border:2px solid rgba(124,106,247,0.3);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 12px"></div>AI가 분석 중이에요...</div>';
 
   try {
-    // 무료: 누적 없이 현재 회차만 / 스탠다드: 누적 분석
-    const prevCA     = prem ? (p.ca || {}) : {};
-    const prevResult = prem && Object.keys(prevCA).length > 0 ? JSON.stringify(prevCA) : '없음';
+    // 무료: 누적 없이 현재 회차만 / 스탠다드·프로: 누적 분석
+    const isPrem     = plan !== 'free';
+    const prevCA     = isPrem ? (p.ca || {}) : {};
+    const prevResult = isPrem && Object.keys(prevCA).length > 0 ? JSON.stringify(prevCA) : '없음';
 
     const prompt = `웹소설 "${p.name}"의 ${curChapter.title} 내용을 분석해줘.
 
 [현재 회차 내용]
 ${curChapter.text}
 
-${prem ? `[이전까지의 누적 분석 결과]
+${isPrem ? `[이전까지의 누적 분석 결과]
 ${prevResult}
 
 위 이전 분석 결과에 현재 회차 내용을 반영하여 전체 내용을 업데이트해줘.
@@ -589,7 +641,7 @@ ${prevResult}
     // 무료: ca를 현재 회차 결과로 덮어씀 (누적 X)
     p.ca = { characters: parsed.characters, summary: parsed.summary, settings: parsed.settings, spelling: parsed.spelling };
     await saveProjects();
-    await addDailyUsage();
+    await addMonthlyUsage();
     updatePlanUI();
     renderAnalysis(); renderSidebar();
 
@@ -735,29 +787,30 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
 /* 요금제 MODAL */
 #plan-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:1000;align-items:center;justify-content:center}
 #plan-modal-bg.show{display:flex}
-#plan-modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:26px;width:480px;max-width:93vw}
+#plan-modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:26px;width:620px;max-width:95vw}
 #plan-modal h2{font-size:18px;font-weight:700;margin-bottom:4px}
 #plan-modal .subtitle{font-size:12px;color:var(--text3);margin-bottom:18px}
 #plan-close{float:right;background:transparent;border:none;color:var(--text3);font-size:18px;cursor:pointer;margin-top:-4px}
-.plan-compare{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.plan-compare{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
 .plan-box{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:16px}
 .plan-box.current{border-color:var(--border2);opacity:0.7}
 .plan-box.highlight{border-color:var(--yellow);background:rgba(249,209,0,0.05)}
+.plan-box.pro-box{border-color:var(--accent);background:rgba(124,106,247,0.06)}
 .plan-box .pb-label{font-size:10px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:6px}
 .plan-box.current .pb-label{color:var(--text3)}
 .plan-box.highlight .pb-label{color:var(--yellow)}
+.plan-box.pro-box .pb-label{color:var(--accent2)}
 .plan-box .pb-price{font-size:22px;font-weight:700;margin-bottom:10px}
 .plan-box.current .pb-price{color:var(--text2)}
 .plan-box.highlight .pb-price{color:var(--accent2)}
+.plan-box.pro-box .pb-price{color:var(--accent2)}
 .plan-box .pb-price span{font-size:11px;font-weight:400;color:var(--text3)}
 .plan-feat-row{display:flex;align-items:flex-start;gap:7px;margin-bottom:6px;font-size:12px}
 .plan-feat-row .feat-icon{font-size:13px;flex-shrink:0;margin-top:1px}
 .plan-feat-row .feat-text{color:var(--text2);line-height:1.4}
 .plan-feat-row .feat-text s{color:var(--text3)}
 .plan-feat-row .feat-lock{font-size:11px;color:var(--text3);margin-left:4px}
-#pay-btn{width:100%;padding:12px;border-radius:var(--radius-sm);border:none;background:var(--accent);color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all 0.15s}
-#pay-btn:hover{background:var(--accent2)}
-.pay-note{font-size:11px;color:var(--text3);text-align:center;margin-top:10px}
+.pay-note{font-size:11px;color:var(--text3);text-align:center;margin-top:6px}
 </style>
 </head>
 <body>
@@ -790,7 +843,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
       </div>
       <div id="editor-wrap">
         <div id="free-limit-banner">
-          ⚠️ 무료 플랜: 오늘 AI 분석 <span id="usage-count">0</span>/1회 사용 — <a href="#" id="banner-upgrade" style="color:var(--yellow);text-decoration:underline">스탠다드로 업그레이드</a>
+          ⚠️ 무료 플랜: 이번 달 AI 분석 <span id="usage-count">0</span>/4회 사용 — <a href="#" id="banner-upgrade" style="color:var(--yellow);text-decoration:underline">업그레이드</a>
         </div>
         <textarea id="editor" placeholder="왼쪽에서 작품을 선택하거나 새로 만들어 글을 시작하세요." disabled></textarea>
         <div id="editor-footer">
@@ -863,7 +916,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
       <div class="plan-box current">
         <div class="pb-label">무료 플랜</div>
         <div class="pb-price">0<span>원</span></div>
-        <div class="plan-feat-row"><span class="feat-icon">✓</span><span class="feat-text">AI 분석 <b>일 1회</b></span></div>
+        <div class="plan-feat-row"><span class="feat-icon">✓</span><span class="feat-text">AI 분석 <b>월 4회</b></span></div>
         <div class="plan-feat-row"><span class="feat-icon">✓</span><span class="feat-text">작품 <b>1개</b></span></div>
         <div class="plan-feat-row"><span class="feat-icon">✓</span><span class="feat-text">인물·줄거리·설정</span></div>
         <div class="plan-feat-row"><span class="feat-icon">✓</span><span class="feat-text">맞춤법 검사</span></div>
@@ -874,16 +927,28 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
       <div class="plan-box highlight">
         <div class="pb-label">⭐ 스탠다드</div>
         <div class="pb-price">4,900<span>원/월</span></div>
-        <div class="plan-feat-row"><span class="feat-icon" style="color:var(--green)">✓</span><span class="feat-text">AI 분석 <b>일 20회</b></span></div>
+        <div class="plan-feat-row"><span class="feat-icon" style="color:var(--green)">✓</span><span class="feat-text">AI 분석 <b>월 30회</b></span></div>
         <div class="plan-feat-row"><span class="feat-icon" style="color:var(--green)">✓</span><span class="feat-text">작품 <b>5개</b></span></div>
         <div class="plan-feat-row"><span class="feat-icon" style="color:var(--green)">✓</span><span class="feat-text">인물·줄거리·설정</span></div>
         <div class="plan-feat-row"><span class="feat-icon" style="color:var(--green)">✓</span><span class="feat-text">맞춤법 검사</span></div>
         <div class="plan-feat-row"><span class="feat-icon" style="color:var(--green)">✓</span><span class="feat-text"><b>누적 분석</b></span></div>
         <div class="plan-feat-row"><span class="feat-icon" style="color:var(--green)">✓</span><span class="feat-text"><b>회차간 연속성 추적</b></span></div>
+        <button id="pay-btn-std" style="margin-top:14px;width:100%;padding:10px;border-radius:var(--radius-sm);border:none;background:var(--accent);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif">스탠다드 구독하기</button>
+      </div>
+      <!-- 프로 플랜 -->
+      <div class="plan-box pro-box">
+        <div class="pb-label">👑 프로</div>
+        <div class="pb-price">9,900<span>원/월</span></div>
+        <div class="plan-feat-row"><span class="feat-icon" style="color:var(--accent2)">✓</span><span class="feat-text">AI 분석 <b>월 90회</b></span></div>
+        <div class="plan-feat-row"><span class="feat-icon" style="color:var(--accent2)">✓</span><span class="feat-text">작품 <b>10개</b></span></div>
+        <div class="plan-feat-row"><span class="feat-icon" style="color:var(--accent2)">✓</span><span class="feat-text">인물·줄거리·설정</span></div>
+        <div class="plan-feat-row"><span class="feat-icon" style="color:var(--accent2)">✓</span><span class="feat-text">맞춤법 검사</span></div>
+        <div class="plan-feat-row"><span class="feat-icon" style="color:var(--accent2)">✓</span><span class="feat-text"><b>누적 분석</b></span></div>
+        <div class="plan-feat-row"><span class="feat-icon" style="color:var(--accent2)">✓</span><span class="feat-text"><b>회차간 연속성 추적</b></span></div>
+        <button id="pay-btn-pro" style="margin-top:14px;width:100%;padding:10px;border-radius:var(--radius-sm);border:none;background:var(--accent2);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif">프로 구독하기</button>
       </div>
     </div>
 
-    <button id="pay-btn">스탠다드 구독하기 — 4,900원/월</button>
     <p class="pay-note">로그인된 계정으로 자동 구독됩니다 · 언제든 해지 가능</p>
   </div>
 </div>
