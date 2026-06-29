@@ -686,8 +686,8 @@ showAuthModal('login');
   --red:#f07070;--green:#6fcf8e;--yellow:#f9d100;
   --radius:10px;--radius-sm:6px;
 }
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif}
-#app{display:flex;height:100vh;overflow:hidden}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;display:flex;flex-direction:column}
+#app{display:flex;flex:1;overflow:hidden}
 
 /* SIDEBAR */
 #sidebar{width:200px;min-width:200px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column}
@@ -974,6 +974,64 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
     <p class="pay-note">로그인된 계정으로 자동 구독됩니다 · 언제든 해지 가능</p>
   </div>
 </div>
+
+<!-- 사이트 하단 필수정보 -->
+<footer id="site-footer">
+  <div class="footer-inner">
+    <div class="footer-info">
+      <span><b>상호명</b> 등용문</span>
+      <span><b>대표자</b> 김선을</span>
+      <span><b>사업자등록번호</b> 254-95-01830</span>
+      <span><b>사업장 주소</b> 충청북도 청주시 흥덕구 대농로 17, 102동 1503호</span>
+      <span><b>연락처</b> kimsuneul@gmail.com</span>
+    </div>
+    <div class="footer-policies">
+      <a href="#" onclick="document.getElementById('policy-modal-bg').classList.add('show');return false">서비스 이용약관 · 환불정책</a>
+    </div>
+    <div class="footer-copy">© 2026 Novellens. All rights reserved.</div>
+  </div>
+</footer>
+
+<!-- 환불정책 모달 -->
+<div id="policy-modal-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:2000;align-items:center;justify-content:center">
+  <div style="background:#16161d;border:1px solid #3a3a4e;border-radius:10px;padding:28px;width:500px;max-width:92vw;max-height:80vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="font-size:16px;font-weight:700">서비스 이용약관 · 환불정책</h3>
+      <button onclick="document.getElementById('policy-modal-bg').classList.remove('show')" style="background:transparent;border:none;color:#9896b0;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div style="font-size:12px;color:#9896b0;line-height:1.9">
+      <p style="font-weight:700;color:#e8e6f0;margin-bottom:6px">■ 서비스 제공 기간</p>
+      <p>구독 결제 완료 시점부터 30일간 서비스가 제공됩니다. 만료일 이후에는 자동으로 무료 플랜으로 전환됩니다.</p>
+
+      <p style="font-weight:700;color:#e8e6f0;margin:14px 0 6px">■ 취소 및 환불 정책</p>
+      <p>· 결제 후 7일 이내, 서비스를 이용하지 않은 경우 전액 환불이 가능합니다.</p>
+      <p>· 결제 후 7일 이내라도 AI 분석 기능을 1회 이상 사용한 경우 환불이 제한될 수 있습니다.</p>
+      <p>· 결제 후 7일이 경과한 경우 환불이 불가합니다.</p>
+      <p>· 환불 요청은 kimsuneul@gmail.com으로 문의해 주세요.</p>
+
+      <p style="font-weight:700;color:#e8e6f0;margin:14px 0 6px">■ 교환 정책</p>
+      <p>디지털 콘텐츠 특성상 플랜 간 교환은 지원하지 않습니다. 업그레이드를 원하시면 기존 구독 만료 후 재결제해 주세요.</p>
+
+      <p style="font-weight:700;color:#e8e6f0;margin:14px 0 6px">■ 서비스 변경 및 중단</p>
+      <p>서비스 내용 변경 또는 중단 시 사전에 이메일로 안내드립니다. 불가피한 서비스 중단의 경우 잔여 기간에 대한 환불이 진행됩니다.</p>
+
+      <p style="font-weight:700;color:#e8e6f0;margin:14px 0 6px">■ 문의</p>
+      <p>kimsuneul@gmail.com</p>
+    </div>
+  </div>
+</div>
+
+<style>
+#site-footer{background:#0f0f13;border-top:1px solid #2e2e3e;padding:20px 24px;margin-top:0;flex-shrink:0}
+.footer-inner{max-width:960px;margin:0 auto}
+.footer-info{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:11px;color:#5e5c78;margin-bottom:8px}
+.footer-info b{color:#9896b0}
+.footer-policies{margin-bottom:6px}
+.footer-policies a{font-size:11px;color:#7c6af7;text-decoration:none}
+.footer-policies a:hover{text-decoration:underline}
+.footer-copy{font-size:10px;color:#3a3a4e}
+#policy-modal-bg.show{display:flex!important}
+</style>
 
 </body>
 </html>
